@@ -1,0 +1,8 @@
+streamlit
+googlemaps
+folium
+streamlit-folium
+pandas
+geopy
+plotly
+geopandas
