@@ -9,7 +9,6 @@ import plotly.graph_objects as go
 
 from streamlit_folium import folium_static
 from folium.plugins import HeatMap
-import geopandas as gpd
 
 import os
 
@@ -24,11 +23,12 @@ with open('Datos.pkl', 'rb') as f:
 # Configurar el sidebar con las opciones
 opcion = st.sidebar.selectbox(
     'Selecciona una visualización',
-    ('Porcentajes', 'Mapa de Calor')
+    ('Resultados en área', 'Mapa de Calor')
 )
 
-if opcion == 'Porcentajes':
-
+if opcion == 'Resultados en área':
+    st.title("Resultados en área")
+    st.write("En esta sección puede ingresar el nombre de una localidad o barrio y seleccionar el radio a tener en cuenta para ver los resultados de ese área:")
     # Solicitar al usuario que ingrese un término de búsqueda
     search_query = st.text_input("Ingresa el nombre de un lugar para buscar y presiona enter:")
 
@@ -96,7 +96,7 @@ if opcion == 'Porcentajes':
                 output = st_folium(m, width=700, height=500)
 
 
-                st.write("Seleccione una escuela para ver los resultados en particular:")
+                st.write("Puede seleccionar una escuela del mapa haciendo click sobre el pin para ver los resultados en particular:")
                 # Intentar capturar el objeto clickeado
                 if output and 'last_object_clicked_popup' in output:
                     last_clicked = output['last_object_clicked_popup']
@@ -109,10 +109,59 @@ if opcion == 'Porcentajes':
 
                 # Verifica si se encontró la fila
                 if not selected_row.empty:
-                    # Haz lo que necesites con 'selected_row'
-                    df_seleccionado = selected_row['Datos'].values[0]  # Supongamos que 'Datos' tiene un DataFrame
+                    # Extraer el DataFrame seleccionado
+                    st.title(f"Resultados en {last_clicked}")
+                    df_seleccionado = selected_row['Datos'].values[0]
 
+                    # Mostrar el DataFrame
                     st.dataframe(df_seleccionado)
+
+                    # Mostrar el selector de partidos
+                    partidos_disponibles = df_seleccionado['partido'].unique()  # Obtener los nombres de los partidos
+                    partido_seleccionado = st.selectbox("Seleccione un partido:", partidos_disponibles)
+
+                    # Filtrar el DataFrame según el partido seleccionado
+                    df_filtrado = df_seleccionado[df_seleccionado['partido'] == partido_seleccionado]
+
+                    if not df_filtrado.empty:
+                        st.write(f"Resultados para el partido {partido_seleccionado}:")
+
+                        # Asegúrate de que los valores en df_seleccionado sean numéricos
+                        df_seleccionado = df_seleccionado.replace("-", 0, regex=True)
+                        df_seleccionado = df_seleccionado.apply(pd.to_numeric, errors='coerce').fillna(0)
+                        df_filtrado = df_filtrado.replace("-", 0, regex=True)
+                        df_filtrado = df_filtrado.apply(pd.to_numeric, errors='coerce').fillna(0)
+
+                        # Calcular el total de votos por categoría en todo el DataFrame
+                        total_votos_categoria = df_seleccionado.iloc[:, 1:].sum()
+
+                        # Calcular los votos del partido seleccionado por categoría
+                        votos_partido_categoria = df_filtrado.iloc[:, 1:].sum()
+
+                        # Calcular los porcentajes
+                        porcentajes = (votos_partido_categoria / total_votos_categoria) * 100
+
+                        # Crear una fila con 3 columnas
+                        col1, col2, col3 = st.columns(3)
+
+                        # Obtener categorías y sus porcentajes
+                        categorias = list(porcentajes.index)  # Usamos las columnas como categorías
+                        porcentajes_valores = porcentajes.values  # Extraemos los valores porcentuales
+
+                        # Asignar cada categoría y porcentaje a una columna
+                        for i, (categoria, porcentaje) in enumerate(zip(categorias, porcentajes_valores)):
+                            if i % 3 == 0:
+                                with col1:
+                                    st.markdown(f"**{categoria.capitalize()}**")
+                                    st.markdown(f"<h2>{porcentaje:.2f}%</h2>", unsafe_allow_html=True)
+                            elif i % 3 == 1:
+                                with col2:
+                                    st.markdown(f"**{categoria.capitalize()}**")
+                                    st.markdown(f"<h2>{porcentaje:.2f}%</h2>", unsafe_allow_html=True)
+                            else:
+                                with col3:
+                                    st.markdown(f"**{categoria.capitalize()}**")
+                                    st.markdown(f"<h2>{porcentaje:.2f}%</h2>", unsafe_allow_html=True)
                 else:
                     st.warning("No hay selección.")
 
@@ -125,17 +174,17 @@ if opcion == 'Porcentajes':
                 ordencolumnas = ["gobernador", "senadores", "diputados", "intendente", "concejales"]
 
                 # Suponiendo que datos_cercanos contiene varios DataFrames y eliges uno de ellos
-                df = datos_cercanos.iloc[0]  # Tomamos el primer DataFrame de la lista
+                df = max(datos_cercanos, key=lambda x: len(x))
 
                 # Reemplazar '-' por 0 y convertir a numérico solo las columnas numéricas
                 df.replace('-', 0, inplace=True)
                 df.iloc[:, 1:] = df.iloc[:, 1:].apply(pd.to_numeric)
 
-                # Excluir solo la primera columna y limitar las filas a 59
-                numeric_cols = df.iloc[:59, 1:]  # Tomar solo las primeras 59 filas excluyendo la primera columna
+                # Excluir solo la primera columna
+                numeric_cols = df.iloc[:len(df), 1:]  # Tomar todas las filas excluyendo la primera columna
 
-                # Guardar los nombres de los partidos de esas 59 filas
-                partidos = df.iloc[:59, 0].tolist()
+                # Guardar los nombres de los partidos de esas filas
+                partidos = df.iloc[:len(df), 0].tolist()
 
                 # Si tienes múltiples DataFrames en datos_cercanos, sumar solo los primeros 59 de cada uno
                 for df in datos_cercanos:
@@ -144,7 +193,7 @@ if opcion == 'Porcentajes':
                     df.iloc[:, 1:] = df.iloc[:, 1:].apply(pd.to_numeric)
 
                     # Excluir solo la primera columna y limitar las filas a 59
-                    numeric_cols = df.iloc[:59, 1:]
+                    numeric_cols = df.iloc[:len(df), 1:]
 
                     # Asegurarse de que las categorías faltantes se incluyan en el DataFrame
                     if resultados_acumulados is None:
@@ -172,7 +221,7 @@ if opcion == 'Porcentajes':
                     resultados_acumulados = resultados_acumulados[['partido'] + ordencolumnas_presentes]
 
                 # Mostrar los resultados acumulados
-                st.write("Resultados acumulados para las escuelas dentro del área:")
+                st.title(f"Resultados acumulados en las escuelas alrededor de {search_query}:")
                 st.dataframe(resultados_acumulados)
 
                 # Selector de partido
@@ -261,7 +310,8 @@ if opcion == 'Porcentajes':
             st.error("No se encontraron resultados para la búsqueda.")
 
 elif opcion == 'Mapa de Calor':
-    st.write("Mapa de calor")
+    st.title("Mapa de calor")
+    st.write("En esta sección puede ver los resultados de un partido seleccionado en formato de mapa de calor, en dónde aquellas áreas en dónde se obtuvieron mejores resultados aparecen en color rojo y las demás en azul")
 
     ListaPartidos = Datos["Datos"][0]["partido"].unique()
     
@@ -308,22 +358,14 @@ elif opcion == 'Mapa de Calor':
             # Seleccionar todas las filas y columnas, excluyendo la primera columna y la primera fila
             df_sliced = df_replaced.iloc[1:, 1:]
 
-            # Calcular la sumatoria de todas las columnas y filas
+            # Calcular la sumatoria de todos los valores en el DataFrame
             sumatoria_total = df_sliced.to_numpy().sum()
 
-            # Obtener la cantidad de columnas (sin contar la primera)
-            num_columnas = df_sliced.shape[1]
-
-            # Calcular el promedio (o total de votos, según tu interpretación)
-            promedio_votos = sumatoria_total / num_columnas
-
-            lista_totales.append(promedio_votos)
+            # Almacenar el total en la lista
+            lista_totales.append(sumatoria_total)
 
         # Concatenar todos los DataFrames de la lista en un solo DataFrame
         df_partido = pd.concat(lista_datos_partido, ignore_index=True)
-
-        # Opción para seleccionar entre valores netos y valores porcentuales
-        opcion = st.selectbox("Seleccione el tipo de valores:", ["Valores Netos", "Valores Porcentuales"])
 
         # Convertir las columnas de interés a numéricas (por si acaso contienen cadenas)
         columnas_interes = ["gobernador", "senadores", "diputados", "intendente", "concejales"]
@@ -334,92 +376,41 @@ elif opcion == 'Mapa de Calor':
 
         # Reemplazar los valores negativos (representando ceros) por ceros
         df_partido[columnas_presentes] = df_partido[columnas_presentes].replace(-1, 0)
+    
+        # Calcular la suma de los votos totales del partido por fila
+        df_partido["total_votos"] = df_partido[columnas_presentes].sum(axis=1)
+        
+        df_partido["totales"] = lista_totales
+        # Dividir el total de votos del partido por los valores correspondientes en lista_totales
+        df_partido["promedio_votos"] = df_partido["total_votos"] / df_partido["totales"]
 
-        if opcion == "Valores Netos":
-            # Sumar las columnas de interés y calcular el promedio (sin tener en cuenta Latitud y Longitud)
-            df_partido["total_votos"] = df_partido[columnas_presentes].sum(axis=1)
-            df_partido["promedio_votos"] = df_partido["total_votos"] / len(columnas_presentes)
+        # Añadir las columnas de Latitud y Longitud desde el DataFrame principal
+        df_partido['Latitud'] = Datos['Latitud']
+        df_partido['Longitud'] = Datos['Longitud']
 
+        # Definir los límites de latitud y longitud
+        lat_min = -30.29
+        lat_max = -27.22
+        lon_min = -59.62
+        lon_max = -55.61
 
-            # Añadir las columnas de Latitud y Longitud desde el DataFrame principal
-            df_partido['Latitud'] = Datos['Latitud']
-            df_partido['Longitud'] = Datos['Longitud']
+        # Filtrar el DataFrame para eliminar las filas que cumplen con las características especificadas
+        df_partido = df_partido[
+            ~((df_partido['Latitud'] == -28.5841599) & (df_partido['Longitud'] == -58.00719220000001)) &
+            (df_partido['Latitud'].between(lat_min, lat_max)) &
+            (df_partido['Longitud'].between(lon_min, lon_max))
+        ]
 
-            # Definir los límites de latitud y longitud
-            lat_min = -30.0
-            lat_max = -26.5
-            lon_min = -59.5
-            lon_max = -56.5
+        # Crear un mapa base centrado en la ubicación media de las cuadrículas
+        map_center = [df_partido['Latitud'].mean(), df_partido['Longitud'].mean()]
+        m = folium.Map(location=map_center, zoom_start=10)
 
-            # Filtrar el DataFrame para eliminar las filas que cumplen con las características especificadas
-            df_partido = df_partido[
-                ~((df_partido['Latitud'] == -28.5841599) & (df_partido['Longitud'] == -58.00719220000001)) &
-                (df_partido['Latitud'].between(lat_min, lat_max)) &
-                (df_partido['Longitud'].between(lon_min, lon_max))
-            ]
-            
-            # Convertir DataFrame a GeoDataFrame, utilizando las coordenadas para la geometría
-            gdf = gpd.GeoDataFrame(df_partido, geometry=gpd.points_from_xy(df_partido['Longitud'], df_partido['Latitud']))
+        # Crear un mapa de calor con los datos de intensidad de votos promedio
+        heat_data = [[row['Latitud'], row['Longitud'], row['promedio_votos']] for index, row in df_partido.iterrows()]
+        HeatMap(heat_data, radius=15, blur=10, max_val=0.1).add_to(m)
 
-            # Calcular la intensidad de votos para el partido seleccionado (evitar divisiones por cero)
-            gdf['intensidad_votos'] = gdf.apply(
-                lambda row: row['promedio_votos'] / row['total_votos'] if row['total_votos'] > 0 else 0,
-                axis=1
-            )
-
-            # Crear un mapa base centrado en la ubicación media de las escuelas
-            map_center = [gdf.geometry.y.mean(), gdf.geometry.x.mean()]
-            m = folium.Map(location=map_center, zoom_start=10)
-
-            # Crear un mapa de calor con los datos de intensidad de votos
-            heat_data = [[point.xy[1][0], point.xy[0][0], intensidad] for point, intensidad in zip(gdf.geometry, gdf['intensidad_votos'])]
-            HeatMap(heat_data, radius=15).add_to(m)
-
-            # Mostrar el mapa en Streamlit
-            st.title(f"Mapa de calor de votos para {partido_seleccionado}")
-            folium_static(m)
-        elif opcion == "Valores Porcentuales":       
-            # Calcular la suma de los votos totales del partido por fila
-            df_partido["total_votos"] = df_partido[columnas_presentes].sum(axis=1)
-            
-            df_partido["totales"] = lista_totales
-            # Dividir el total de votos del partido por los valores correspondientes en lista_totales
-            # Aquí asumimos que lista_totales tiene un valor correspondiente para cada fila del DataFrame.
-            df_partido["promedio_votos"] = df_partido["total_votos"] / df_partido["totales"]
-
-             # Añadir las columnas de Latitud y Longitud desde el DataFrame principal
-            df_partido['Latitud'] = Datos['Latitud']
-            df_partido['Longitud'] = Datos['Longitud']
-
-            # Definir los límites de latitud y longitud
-            lat_min = -30.0
-            lat_max = -26.5
-            lon_min = -59.5
-            lon_max = -56.5
-
-            # Filtrar el DataFrame para eliminar las filas que cumplen con las características especificadas
-            df_partido = df_partido[
-                ~((df_partido['Latitud'] == -28.5841599) & (df_partido['Longitud'] == -58.00719220000001)) &
-                (df_partido['Latitud'].between(lat_min, lat_max)) &
-                (df_partido['Longitud'].between(lon_min, lon_max))
-            ]
-
-            # Convertir DataFrame a GeoDataFrame, utilizando las coordenadas para la geometría
-            gdf = gpd.GeoDataFrame(df_partido, geometry=gpd.points_from_xy(df_partido['Longitud'], df_partido['Latitud']))
-
-            # Usar promedio_votos directamente como intensidad de votos
-            gdf['intensidad_votos'] = gdf['promedio_votos']
-
-            # Crear un mapa base centrado en la ubicación media de las escuelas
-            map_center = [gdf.geometry.y.mean(), gdf.geometry.x.mean()]
-            m = folium.Map(location=map_center, zoom_start=10)
-
-            # Crear un mapa de calor con los datos de intensidad de votos
-            heat_data = [[point.xy[1][0], point.xy[0][0], intensidad] for point, intensidad in zip(gdf.geometry, gdf['intensidad_votos'])]
-            HeatMap(heat_data, radius=15).add_to(m)
-
-            # Mostrar el mapa en Streamlit
-            st.title(f"Mapa de calor de votos para {partido_seleccionado}")
-            folium_static(m)
+        # Mostrar el mapa en Streamlit
+        st.title(f"Mapa de calor de votos promedio para {partido_seleccionado}")
+        folium_static(m)
     else:
         st.write("No se encontraron datos para el partido seleccionado.")
