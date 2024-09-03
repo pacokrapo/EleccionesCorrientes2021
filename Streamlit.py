@@ -95,6 +95,19 @@ if opcion == 'Resultados en área':
                 # Mostrar el mapa en Streamlit
                 output = st_folium(m, width=700, height=500)
 
+                # Aplicar estilo CSS para ajustar el tamaño del contenedor del mapa
+                st.markdown("""
+                    <style>
+                    .streamlit-expanderHeader {
+                        display: none !important;
+                    }
+                    .element-container {
+                        max-height: 500px;
+                        overflow-y: auto;
+                    }
+                    </style>
+                """, unsafe_allow_html=True)
+
 
                 st.write("Puede seleccionar una escuela del mapa haciendo click sobre el pin para ver los resultados en particular:")
                 # Intentar capturar el objeto clickeado
