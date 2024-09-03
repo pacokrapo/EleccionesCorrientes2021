@@ -1,6 +1,7 @@
 import streamlit as st
 import googlemaps
 import folium
+from streamlit_folium import st_folium
 import pandas as pd
 from geopy.distance import geodesic
 import pickle
@@ -92,7 +93,7 @@ if opcion == 'Resultados en área':
                     ).add_to(m)
 
                 # Mostrar el mapa en Streamlit
-                output = folium_static(m, height=500)
+                output = st_folium(m, width=700, height=500)
 
 
                 st.write("Puede seleccionar una escuela del mapa haciendo click sobre el pin para ver los resultados en particular:")
