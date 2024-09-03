@@ -23,7 +23,7 @@ with open('Datos.pkl', 'rb') as f:
 # Configurar el sidebar con las opciones
 opcion = st.sidebar.selectbox(
     'Selecciona una visualización',
-    ('Resultados en área', 'Mapa de Calor')
+    ('Resultados en área', 'Mapa de porcentajes')
 )
 
 if opcion == 'Resultados en área':
@@ -322,14 +322,14 @@ if opcion == 'Resultados en área':
         else:
             st.error("No se encontraron resultados para la búsqueda.")
 
-elif opcion == 'Mapa de Calor':
-    st.title("Mapa de calor")
-    st.write("En esta sección puede ver los resultados de un partido seleccionado en formato de mapa de calor, en dónde aquellas áreas en dónde se obtuvieron mejores resultados aparecen en color rojo y las demás en azul")
+elif opcion == 'Mapa de porcentajes':
+    st.title("Mapa de porcentajes")
+    st.write("En esta sección puede ver los resultados de un partido seleccionado en formato de mapa de porcentajes, el tamaño del círculo determina el porcentaje de votos obtenido")
 
     ListaPartidos = Datos["Datos"][0]["partido"].unique()
     
     partido_seleccionado = st.selectbox(
-    'Selecciona un partido para ver el mapa de calor de este:',
+    'Selecciona un partido para ver el mapa de porcentajes de este:',
     ListaPartidos
     )
 
@@ -418,12 +418,26 @@ elif opcion == 'Mapa de Calor':
         map_center = [df_partido['Latitud'].mean(), df_partido['Longitud'].mean()]
         m = folium.Map(location=map_center, zoom_start=10)
 
-        # Crear un mapa de calor con los datos de intensidad de votos promedio
-        heat_data = [[row['Latitud'], row['Longitud'], row['promedio_votos']] for index, row in df_partido.iterrows()]
-        HeatMap(heat_data, radius=15, blur=10, max_val=0.1).add_to(m)
+        # Agregar los CircleMarkers al mapa con popups
+        for index, row in df_partido.iterrows():
+            # Si el promedio de votos es 0, usar un radio mínimo para simular un punto pequeño
+            if row['promedio_votos'] > 0:
+                radius = row['promedio_votos'] * 2
+            else:
+                radius = 1  # Usa un radio pequeño para valores de 0
+
+            folium.CircleMarker(
+                location=[row['Latitud'], row['Longitud']],
+                radius=radius,  # Ajusta el tamaño del círculo o punto
+                color='blue',
+                fill=True,
+                fill_color='blue',
+                fill_opacity=0.6,
+                popup=folium.Popup(f"<strong>{row['Escuela']}</strong><br>Porcentaje de Votos: {row['promedio_votos']:.2f}%", max_width=300)
+            ).add_to(m)
 
         # Mostrar el mapa en Streamlit
-        st.title(f"Mapa de calor de votos promedio para {partido_seleccionado}")
+        st.title(f"Mapa de porcentaje de votos para el partido {partido_seleccionado}")
         folium_static(m)
     else:
         st.write("No se encontraron datos para el partido seleccionado.")
