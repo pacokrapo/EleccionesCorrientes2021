@@ -396,7 +396,7 @@ elif opcion == 'Mapa de porcentajes':
         
         df_partido["totales"] = lista_totales
         # Dividir el total de votos del partido por los valores correspondientes en lista_totales
-        df_partido["promedio_votos"] = df_partido["total_votos"] / df_partido["totales"]
+        df_partido["promedio_votos"] = (df_partido["total_votos"] / df_partido["totales"])*100
 
         # Añadir las columnas de Latitud y Longitud desde el DataFrame principal
         df_partido['Latitud'] = Datos['Latitud']
