@@ -353,6 +353,7 @@ elif opcion == 'Mapa de porcentajes':
             # Añadir las columnas de Latitud y Longitud desde el DataFrame principal
             df_partido_temp['Latitud'] = Datos['Latitud'][i]
             df_partido_temp['Longitud'] = Datos['Longitud'][i]
+            df_partido_temp["Escuela"] = Datos["Escuela"][i]
             
             # Añadir las filas filtradas a la lista
             lista_datos_partido.append(df_partido_temp)
